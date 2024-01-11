@@ -1,5 +1,6 @@
 import csv
 import os
+import datetime
 import psycopg2
 from google.cloud import storage
 
@@ -45,7 +46,7 @@ def load_csv_to_db(event, context):
     conn.close()
 
     # Optionally, handle the invalid records (e.g., log them, store in another file)
-    handle_invalid_records(invalid_records)
+    # handle_invalid_records(invalid_records)
 
 def validate_row(row, file_name, cursor):
     # Check for mandatory fields based on the file type
@@ -61,13 +62,57 @@ def validate_row(row, file_name, cursor):
         return False
 
 def validate_product_row(row):
-    return all(key in row and row[key] for key in ['UPC', 'Cost', 'RegularPrice'])
+    required_fields = ['UPC', 'Cost', 'RegularPrice']
+
+    if not all(field in row and row[field] for field in required_fields):
+        return False
+
+    try:
+        cost = float(row['Cost'])
+        regular_price = float(row['RegularPrice'])
+        if cost < 0 or regular_price < 0:
+            return False
+    except ValueError:
+        return False
+
+    return True
 
 def validate_inventory_row(row):
-    return all(key in row and row[key] for key in ['ProductID', 'QuantityOnHand', 'Date'])
+    required_fields = ['ProductID', 'QuantityOnHand', 'Date']
+
+    if not all(field in row and row[field] for field in required_fields):
+        return False
+
+    try:
+        quantity_on_hand = int(row['QuantityOnHand'])
+        if quantity_on_hand < 0:
+            return False
+    except ValueError:
+        return False
+
+    try:
+        datetime.strptime(row['Date'], '%Y-%m-%d')
+    except ValueError:
+        return False
+
+    return True
+
 
 def validate_markdown_plan_row(row, cursor):
-    if not all(key in row and row[key] for key in ['ProductID', 'StartDate', 'EndDate']):
+    required_fields = ['ProductID', 'StartDate', 'EndDate', 'InitialReduction', 'MidwayReduction', 'FinalReduction']
+
+    if not all(field in row and row[field] for field in required_fields):
+        return False
+
+    try:
+        datetime.strptime(row['StartDate'], '%Y-%m-%d')
+        datetime.strptime(row['EndDate'], '%Y-%m-%d')
+        initial_reduction = float(row['InitialReduction'])
+        midway_reduction = float(row['MidwayReduction'])
+        final_reduction = float(row['FinalReduction'])
+        if not 0 <= initial_reduction <= 100 or not 0 <= midway_reduction <= 100 or not 0 <= final_reduction <= 100:
+            return False
+    except ValueError:
         return False
 
     cursor.execute("""
@@ -82,8 +127,26 @@ def validate_markdown_plan_row(row, cursor):
     return overlap_count == 0
 
 def validate_sales_data_row(row):
-    # Implement the necessary validation for sales data
-    # Placeholder - replace with actual validation logic
+    # Check for the presence of necessary fields
+    required_fields = ['SalesDataID', 'Date', 'UnitsSold', 'SellPrice']
+    if not all(field in row and row[field] for field in required_fields):
+        return False
+
+    # Check if 'Date' is in correct format
+    try:
+        datetime.strptime(row['Date'], '%Y-%m-%d')
+    except ValueError:
+        return False
+
+    # Check if 'UnitsSold' and 'SellPrice' are valid numbers
+    try:
+        units_sold = int(row['UnitsSold'])
+        sell_price = float(row['SellPrice'])
+        if units_sold < 0 or sell_price < 0:
+            return False
+    except ValueError:
+        return False
+
     return True
 
 def insert_into_db(cursor, row, file_name):
@@ -96,26 +159,21 @@ def insert_into_db(cursor, row, file_name):
     elif 'sales_data.csv' in file_name:
         insert_sales_data(cursor, row)
 
+# Insert functions for each CSV file type
+
 def insert_product_data(cursor, row):
-    # Implement the insert logic for product data
-    pass
+    cursor.execute("INSERT INTO Product (ProductID, Description, Cost, RegularPrice) VALUES (%s, %s, %s, %s)",
+                   (row['UPC'], row['Description'], row['Cost'], row['RegularPrice']))
 
 def insert_inventory_data(cursor, row):
-    # Implement the insert logic for inventory data
-    pass
+    cursor.execute("INSERT INTO Inventory (InventoryID, ProductID, QuantityOnHand, Date) VALUES (%s, %s, %s, %s)",
+                   (row['InventoryID'], row['ProductID'], row['QuantityOnHand'], row['Date']))
 
 def insert_markdown_plan_data(cursor, row):
-    # Implement the insert logic for markdown plan data
-    pass
+    cursor.execute("INSERT INTO MarkdownPlan (MarkdownPlanID, ProductID, StartDate, EndDate, InitialReduction, MidwayReduction, FinalReduction) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                   (row['MarkdownPlanID'], row['ProductID'], row['StartDate'], row['EndDate'], row['InitialReduction'], row['MidwayReduction'], row['FinalReduction']))
 
 def insert_sales_data(cursor, row):
-    # Implement the logic to insert sales data
-    # Refer to the earlier example for detailed implementation
-    pass
-
-def handle_invalid_records(records):
-    # Implement logic to handle invalid records
-    # For example, log to a file or print them
-    pass
-
-# Additional helper functions can be added here
+    # Assuming 'SalesPrice' is calculated beforehand and included in the row
+    cursor.execute("INSERT INTO SalesData (SalesDataID, MarkdownPlanID, Date, UnitsSold, SellPrice) VALUES (%s, %s, %s, %s, %s)",
+                   (row['SalesDataID'], row['MarkdownPlanID'], row['Date'], row['UnitsSold'], row['SalesPrice']))
