@@ -127,18 +127,16 @@ def validate_markdown_plan_row(row, cursor):
     return overlap_count == 0
 
 def validate_sales_data_row(row):
-    # Check for the presence of necessary fields
-    required_fields = ['SalesDataID', 'Date', 'UnitsSold', 'SellPrice']
+    required_fields = ['SalesDataID', 'ProductID', 'Date', 'UnitsSold', 'SellPrice']
+
     if not all(field in row and row[field] for field in required_fields):
         return False
 
-    # Check if 'Date' is in correct format
     try:
         datetime.strptime(row['Date'], '%Y-%m-%d')
     except ValueError:
         return False
 
-    # Check if 'UnitsSold' and 'SellPrice' are valid numbers
     try:
         units_sold = int(row['UnitsSold'])
         sell_price = float(row['SellPrice'])
@@ -147,7 +145,14 @@ def validate_sales_data_row(row):
     except ValueError:
         return False
 
+    # Assuming ProductID is a numeric value
+    try:
+        int(row['ProductID'])
+    except ValueError:
+        return False
+
     return True
+
 
 def insert_into_db(cursor, row, file_name):
     if 'products.csv' in file_name:
@@ -174,6 +179,7 @@ def insert_markdown_plan_data(cursor, row):
                    (row['MarkdownPlanID'], row['ProductID'], row['StartDate'], row['EndDate'], row['InitialReduction'], row['MidwayReduction'], row['FinalReduction']))
 
 def insert_sales_data(cursor, row):
-    # Assuming 'SalesPrice' is calculated beforehand and included in the row
-    cursor.execute("INSERT INTO SalesData (SalesDataID, MarkdownPlanID, Date, UnitsSold, SellPrice) VALUES (%s, %s, %s, %s, %s)",
-                   (row['SalesDataID'], row['MarkdownPlanID'], row['Date'], row['UnitsSold'], row['SalesPrice']))
+    # Inserting SalesData and handling possible absence of MarkdownPlanID
+    markdown_plan_id = row.get('MarkdownPlanID') if 'MarkdownPlanID' in row and row['MarkdownPlanID'] else None
+    cursor.execute("INSERT INTO SalesData (SalesDataID, ProductID, MarkdownPlanID, Date, UnitsSold, SellPrice) VALUES (%s, %s, %s, %s, %s, %s)",
+                   (row['SalesDataID'], row['ProductID'], markdown_plan_id, row['Date'], row['UnitsSold'], row['SellPrice']))

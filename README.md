@@ -31,34 +31,35 @@ Entities and Attributes
 1. Product
 ProductID (Primary Key): A unique identifier, such as a UPC.
 Description: A brief description of the product.
-Cost: The cost to the store owner for acquiring the product.
-RegularPrice: The regular selling price of the product.
+Cost: The cost to the store owner for acquiring the product (mandatory field).
+RegularPrice: The regular selling price of the product (mandatory field).
 2. Inventory
 InventoryID (Primary Key)
-ProductID (Foreign Key): Links to the Product.
-QuantityOnHand: The number of units available.
-Date: The specific date for the inventory count.
+ProductID (Foreign Key): Links to the Product (mandatory field).
+QuantityOnHand: The number of units available (mandatory field).
+Date: The specific date for the inventory count (mandatory field).
 3. MarkdownPlan
 MarkdownPlanID (Primary Key)
-ProductID (Foreign Key): Links to the Product.
-StartDate: The beginning date for the markdown.
-EndDate: The target end date for the markdown.
-InitialReduction: The initial price reduction percentage.
+ProductID (Foreign Key): Links to the Product (mandatory field).
+StartDate: The beginning date for the markdown (mandatory field).
+EndDate: The target end date for the markdown (mandatory field).
+InitialReduction: The initial price reduction percentage (mandatory field).
 MidwayReduction: The midway price reduction percentage.
 FinalReduction: The final day price reduction percentage.
 4. SalesData
 SalesDataID (Primary Key)
 MarkdownPlanID (Foreign Key): Links to the Markdown Plan.
-Date: The date of the sale.
-UnitsSold: The number of units sold that day.
-SellPrice: The selling price on that day (reflecting markdowns).
+ProductID (Foreign Key): Links to the Product (mandatory field).
+Date: The date of the sale (mandatory field).
+UnitsSold: The number of units sold that day (mandatory field).
+SellPrice: The selling price on that day (reflecting markdowns) (mandatory field).
 5. DailyMetrics
 MetricsID (Primary Key)
-SalesDataID (Foreign Key): Links to the Sales Data.
-UnitsSold: The number of units sold that day.
+SalesDataID (Foreign Key): Links to the Sales Data (mandatory field).
+UnitsSold: The number of units sold that day (mandatory field).
 Margin: Calculated as SellPrice - Cost.
 ProfitOrLoss: Calculated for the day.
-RemainingInventory: Calculated based on inventory and sales.
+RemainingTotalInventory: Calculated based on inventory and sales.
 
 Relationships
 Product to Inventory: One-to-Many (One product can have many inventory records).
