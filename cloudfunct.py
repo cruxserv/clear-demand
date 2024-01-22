@@ -27,21 +27,24 @@ def load_csv_to_db(event, context):
     # Read and process the CSV file
     invalid_records = []
     reader = csv.DictReader(data.splitlines())
-
+    
+    # Validate and insert each row into the database
     for row in reader:
         try:
-            # Validate and insert each row into the database
+            cursor.execute("BEGIN;")  # Start a new transaction for each row
             if validate_row(row, file_name, cursor):
                 insert_into_db(cursor, row, file_name)
             else:
                 invalid_records.append(row)
+                raise ValueError("Validation Failed")
+            cursor.execute("COMMIT;")  # Commit if everything was successful
         except Exception as e:
             # Log or store the error and the invalid row
             print(f"Error processing row {row}: {e}")
             invalid_records.append(row)
+            cursor.execute("ROLLBACK;")  # Rollback transaction on error
 
-    # Commit transactions and close the connection
-    conn.commit()
+    # Close the connection
     cursor.close()
     conn.close()
 
