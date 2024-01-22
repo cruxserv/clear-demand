@@ -1,6 +1,6 @@
 import csv
 import os
-import datetime
+from datetime import datetime
 import psycopg2
 from google.cloud import storage
 
